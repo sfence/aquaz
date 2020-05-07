@@ -35,7 +35,7 @@ aquaz.corals = {
 	description= "Sarcophyton Coral",
 	tiles = "aquaz_sarcophyton_base.png",
 	special_tiles = "aquaz_sarcophyton_top.png",
-	inventory_image = "aquaz_carnation_inv.png",
+	inventory_image = "aquaz_sarcophyton_inv.png",
 	},
 	{
 	name = "aquaz:carnation",
