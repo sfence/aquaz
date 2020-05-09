@@ -293,6 +293,8 @@ for i = 1, #aquaz.coral_deco do
 			snappy = 2, flammable = 3, oddly_breakable_by_hand = 3, choppy = 2, carpet = 1, leafdecay = 3, leaves = 1
 		},
 		sounds = default.node_sound_leaves_defaults(),
+
+		on_use = minetest.item_eat(4),
 	})
 end
 
