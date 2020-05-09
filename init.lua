@@ -193,7 +193,7 @@ end
 
 if mg_name ~= "v6" and mg_name ~= "singlenode" then
 	minetest.register_decoration({
-		name = "aquaz:algaes",
+		name = "aquaz:kelps",
 		decoration = {
 			"aquaz:calliarthon_kelp",
 			"aquaz:sea_blade_coral"
@@ -222,3 +222,124 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 		param2_max = 96,
 	})
 end
+
+--Wrecked Pillar
+
+aquaz.wrecked_pillar = {
+	{
+	name = "aquaz:wrecked_pillar_base",
+	description= "Wrecked Pillar Base",
+	tile = "aquaz_base_pillar.png"
+	},
+	{
+	name = "aquaz:wrecked_pillar_shaft",
+	description= "Wrecked Pillar Shaft",
+	tile = "aquaz_shaft_pillar.png"
+	},
+	{
+	name = "aquaz:wrecked_pillar_capital",
+	description= "Wrecked Pillar Capital",
+	tile = "aquaz_capital_pillar.png"
+	},
+}
+
+for i = 1, #aquaz.wrecked_pillar do
+	minetest.register_node(aquaz.wrecked_pillar[i].name, {
+		description = S(aquaz.wrecked_pillar[i].description),
+		tiles = {
+			"aquaz_up_down_pillar.png",
+			"aquaz_up_down_pillar.png",
+			aquaz.wrecked_pillar[i].tile,
+		},
+		is_ground_content = false,
+		groups = {cracky = 2, stone = 1},
+		sounds = default.node_sound_stone_defaults(),
+	})
+end
+
+aquaz.coral_deco = {
+	{
+	name = "aquaz:purple_alga",
+	description= "Purple Alga Remains",
+	tile = "aquaz_purple_alga.png"
+	},
+	{
+	name = "aquaz:orange_alga",
+	description= "Orange Alga Remains",
+	tile = "aquaz_orange_alga.png"
+	},
+	{
+	name = "aquaz:red_alga",
+	description= "Red Alga Remains",
+	tile = "aquaz_red_alga.png"
+	},
+}
+
+for i = 1, #aquaz.coral_deco do
+	minetest.register_node(aquaz.coral_deco[i].name, {
+		description = S(aquaz.coral_deco[i].description),
+		drawtype = "nodebox",
+		walkable = true,
+		paramtype = "light",
+		paramtype2 = "facedir",
+		tiles = {aquaz.coral_deco[i].tile},
+		inventory_image = aquaz.coral_deco[i].tile,
+		wield_image = aquaz.coral_deco[i].tile,
+		node_box = {
+			type = "fixed",
+			fixed = {-0.5, -0.5, -0.5, 0.5, -0.499, 0.5}
+		},
+		groups = {
+			snappy = 2, flammable = 3, oddly_breakable_by_hand = 3, choppy = 2, carpet = 1, leafdecay = 3, leaves = 1
+		},
+		sounds = default.node_sound_leaves_defaults(),
+	})
+end
+
+if mg_name ~= "v6" and mg_name ~= "singlenode" then
+	minetest.register_decoration({
+		name = "aquaz:algaes",
+		decoration = {
+			"aquaz:purple_alga",
+			"aquaz:orange_alga",
+			"aquaz:red_alga",
+		},
+		deco_type = "simple",
+		place_on = {"default:sand"},
+		sidelen = 16,
+		noise_params = {
+			offset = 0.0005,
+			scale = 0.0004,
+			spread = {x = 250, y = 250, z = 250},
+			seed = 2,
+			octaves = 3,
+			persist = 0.66
+		},
+		biomes = {
+			"grassland_ocean",
+			"coniferous_forest_ocean",
+			"deciduous_forest_ocean"
+		},
+		y_max = 2,
+		y_min = 1,
+		flags = "force_placement",
+	})
+end
+
+minetest.register_decoration({
+    deco_type = "schematic",
+    place_on = {"default:sand"},
+    place_offset_y = 1,
+    sidelen = 16,
+    fill_ratio = 0.0001,
+	biomes = {
+		"grassland_ocean",
+		"coniferous_forest_ocean",
+		"deciduous_forest_ocean"
+	},
+    y_max = -6,
+    y_min = -10,
+    schematic = modpath .. "/schematics/wrecked_pillar.mts",
+    rotation = "random",
+    flags = "force_placement, place_center_x, place_center_z",
+})
