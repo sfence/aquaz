@@ -44,6 +44,20 @@ aquaz.corals = {
 	special_tiles = "aquaz_carnation_top.png",
 	inventory_image = "aquaz_carnation_inv.png",
 	},
+	{
+	name = "aquaz:fiery_red",
+	description= "Fiery Red Coral",
+	tiles = "aquaz_fiery_red_base.png",
+	special_tiles = "aquaz_fiery_red_top.png",
+	inventory_image = "aquaz_fiery_red_inv.png",
+	},
+	{
+	name = "aquaz:acropora",
+	description= "Acropora Coral",
+	tiles = "aquaz_acropora_base.png",
+	special_tiles = "aquaz_acropora_top.png",
+	inventory_image = "aquaz_acropora_inv.png",
+	},
 }
 
 for i = 1, #aquaz.corals do
@@ -167,6 +181,8 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 			"aquaz:rhodophyta",
 			"aquaz:sarcophyton",
 			"aquaz:carnation",
+			"aquaz:fiery_red",
+			"aquaz:acropora",
 		},
 		deco_type = "simple",
 		place_on = {"default:sand"},
