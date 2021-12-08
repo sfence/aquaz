@@ -11,6 +11,83 @@ local mg_name = minetest.get_mapgen_setting("mg_name")
 -- internationalization boilerplate
 local S = minetest.get_translator(minetest.get_current_modname())
 
+local function plant_on_place(itemstack, placer, pointed_thing)
+	-- Call on_rightclick if the pointed node defines it
+	if pointed_thing.type == "node" and placer and not placer:get_player_control().sneak then
+		local node_ptu = minetest.get_node(pointed_thing.under)
+		local def_ptu = minetest.registered_nodes[node_ptu.name]
+		if def_ptu and def_ptu.on_rightclick then
+			return def_ptu.on_rightclick(pointed_thing.under, node_ptu, placer,
+				itemstack, pointed_thing)
+		end
+	end
+
+	local pos = pointed_thing.under
+	if minetest.get_node(pos).name ~= "default:sand" then
+		return itemstack
+	end
+	local pos_top = {x = pos.x, y = pos.y + 0.99, z = pos.z}
+	local node_top = minetest.get_node(pos_top)
+	local def_top = minetest.registered_nodes[node_top.name]
+	local player_name = placer:get_player_name()
+
+	if def_top and def_top.liquidtype == "source" and
+			minetest.get_item_group(node_top.name, "water") > 0 then
+		if not minetest.is_protected(pos, player_name) and
+				not minetest.is_protected(pos_top, player_name) then
+			minetest.set_node(pos, {name = itemstack:get_name()})
+			if not (creative and creative.is_enabled_for
+					and creative.is_enabled_for(player_name)) then
+				itemstack:take_item()
+			end
+		else
+			minetest.chat_send_player(player_name, S("Node is protected"))
+			minetest.record_protection_violation(pos, player_name)
+		end
+	end
+	return itemstack
+end
+
+local function algae_on_place(itemstack, placer, pointed_thing)
+	-- Call on_rightclick if the pointed node defines it
+	if pointed_thing.type == "node" and placer and not placer:get_player_control().sneak then
+		local node_ptu = minetest.get_node(pointed_thing.under)
+		local def_ptu = minetest.registered_nodes[node_ptu.name]
+		if def_ptu and def_ptu.on_rightclick then
+			return def_ptu.on_rightclick(pointed_thing.under, node_ptu, placer,
+				itemstack, pointed_thing)
+		end
+	end
+
+	local pos = pointed_thing.under
+	if minetest.get_node(pos).name ~= "default:sand" then
+		return itemstack
+	end
+
+	local height = math.random(4, 6)
+	local pos_top = {x = pos.x, y = pos.y + height, z = pos.z}
+	local node_top = minetest.get_node(pos_top)
+	local def_top = minetest.registered_nodes[node_top.name]
+	local player_name = placer:get_player_name()
+
+	if def_top and def_top.liquidtype == "source" and
+			minetest.get_item_group(node_top.name, "water") > 0 then
+		if not minetest.is_protected(pos, player_name) and
+				not minetest.is_protected(pos_top, player_name) then
+			minetest.set_node(pos, {name = itemstack:get_name(),
+				param2 = height * 16})
+			if not (creative and creative.is_enabled_for
+					and creative.is_enabled_for(player_name)) then
+				itemstack:take_item()
+			end
+		else
+			minetest.chat_send_player(player_name, S("Node is protected"))
+			minetest.record_protection_violation(pos, player_name)
+		end
+	end
+	return itemstack
+end
+
 --
 -- Nodes
 --
@@ -121,47 +198,7 @@ for i = 1, #aquaz.algaes do
 			dug = {name = "default_grass_footstep", gain = 0.25},
 		}),
 
-		on_place = function(itemstack, placer, pointed_thing)
-			-- Call on_rightclick if the pointed node defines it
-			if pointed_thing.type == "node" and placer and
-					not placer:get_player_control().sneak then
-				local node_ptu = minetest.get_node(pointed_thing.under)
-				local def_ptu = minetest.registered_nodes[node_ptu.name]
-				if def_ptu and def_ptu.on_rightclick then
-					return def_ptu.on_rightclick(pointed_thing.under, node_ptu, placer,
-						itemstack, pointed_thing)
-				end
-			end
-
-			local pos = pointed_thing.under
-			if minetest.get_node(pos).name ~= "default:sand" then
-				return itemstack
-			end
-
-			local height = math.random(4, 6)
-			local pos_top = {x = pos.x, y = pos.y + height, z = pos.z}
-			local node_top = minetest.get_node(pos_top)
-			local def_top = minetest.registered_nodes[node_top.name]
-			local player_name = placer:get_player_name()
-
-			if def_top and def_top.liquidtype == "source" and
-					minetest.get_item_group(node_top.name, "water") > 0 then
-				if not minetest.is_protected(pos, player_name) and
-						not minetest.is_protected(pos_top, player_name) then
-					minetest.set_node(pos, {name = aquaz.algaes[i].name,
-						param2 = height * 16})
-					if not (creative and creative.is_enabled_for
-							and creative.is_enabled_for(player_name)) then
-						itemstack:take_item()
-					end
-				else
-					minetest.chat_send_player(player_name, S("Node is protected"))
-					minetest.record_protection_violation(pos, player_name)
-				end
-			end
-
-			return itemstack
-		end,
+		on_place = algae_on_place,
 
 		after_destruct  = function(pos, oldnode)
 			minetest.set_node(pos, {name = "default:sand"})
@@ -186,15 +223,14 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 		},
 		deco_type = "simple",
 		place_on = {"default:sand"},
-		spawn_by = "default:water_source",
 		sidelen = 16,
 		noise_params = {
-			offset = 0.005,
-			scale = 0.004,
-			spread = {x = 250, y = 250, z = 250},
-			seed = 2,
+			offset = -0.04,
+			scale = 0.05,
+			spread = {x = 200, y = 200, z = 200},
+			seed = 25345,
 			octaves = 3,
-			persist = 0.66
+			persist = 0.7
 		},
 		biomes = {
 			"grassland_ocean",
@@ -223,6 +259,318 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 			scale = 0.004,
 			spread = {x = 250, y = 250, z = 250},
 			seed = 2,
+			octaves = 3,
+			persist = 0.66
+		},
+		biomes = {
+			"grassland_ocean",
+			"coniferous_forest_ocean",
+			"deciduous_forest_ocean"
+		},
+		y_max = -5,
+		y_min = -10,
+		flags = "force_placement",
+		param2 = 48,
+		param2_max = 96,
+	})
+end
+
+aquaz.grass= {
+	{
+	name = "aquaz:grass",
+	description= "Aquatic Grass",
+	special_tiles = "aquaz_grass.png",
+	},
+	{
+	name = "aquaz:tall_grass",
+	description= "Aquatic Tall Grass",
+	special_tiles = "aquaz_tall_grass.png",
+	},
+	{
+	name = "aquaz:stars_anemons",
+	description= "Grass with Stars and Anemons",
+	special_tiles = "aquaz_stars_anemons.png",
+	drop = "aquaz:tall_grass"
+	},
+	{
+	name = "aquaz:stars_anemons_2",
+	description= "Grass with Stars and Anemons",
+	special_tiles = "aquaz_stars_anemons_2.png",
+	drop = "aquaz:tall_grass"
+	},
+	{
+	name = "aquaz:aquamarine_coral_branch",
+	description= "Aquamarine Coral Branch",
+	special_tiles = "aquaz_aquamarine_coral_branch.png",
+	},
+	{
+	name = "aquaz:pink_birdnest_coral",
+	description= "Pink Birdnest Coral",
+	special_tiles = "aquaz_pink_birdnest_coral.png",
+	},
+	{
+	name = "aquaz:sea_cucumbers",
+	description= "Sea Cucumbers",
+	special_tiles = "aquaz_sea_cucumbers.png",
+	},
+	{
+	name = "aquaz:sword_plant",
+	description= "Aquatic Sword Plant",
+	special_tiles = "aquaz_sword_plant.png",
+	},
+}
+
+for i = 1, #aquaz.grass do
+	local drop
+	if aquaz.grass[i].drop then
+		drop = aquaz.grass[i].drop
+	else
+		drop = aquaz.grass[i].name
+	end
+	minetest.register_node(aquaz.grass[i].name, {
+		description = S(aquaz.grass[i].description),
+		drawtype = "plantlike_rooted",
+		waving = 1,
+		paramtype = "light",
+		tiles = {"default_sand.png"},
+		special_tiles = {{name = aquaz.grass[i].special_tiles, tileable_vertical = true}},
+		inventory_image = aquaz.grass[i].special_tiles,
+		wield_image = aquaz.grass[i].special_tiles,
+		drop = drop,
+		groups = {snappy = 3},
+		selection_box = {
+			type = "fixed",
+			fixed = {
+				{-0.5, -0.5, -0.5, 0.5, 0.5, 0.5},
+				{-4/16, 0.5, -4/16, 4/16, 1.5, 4/16},
+			},
+		},
+		node_dig_prediction = "default:sand",
+		node_placement_prediction = "",
+		sounds = default.node_sound_stone_defaults({
+			dig = {name = "default_dig_snappy", gain = 0.2},
+			dug = {name = "default_grass_footstep", gain = 0.25},
+		}),
+
+		on_place = plant_on_place,
+
+		after_destruct  = function(pos, oldnode)
+			minetest.set_node(pos, {name = "default:sand"})
+		end,
+	})
+end
+
+if mg_name ~= "v6" and mg_name ~= "singlenode" then
+	minetest.register_decoration({
+		name = "aquaz:grass",
+		decoration = {
+			"aquaz:grass",
+		},
+		deco_type = "simple",
+		place_on = {"default:sand"},
+		place_offset_y = -1,
+		sidelen = 16,
+		noise_params = {
+			offset = 0.0025,
+			scale = 0.04,
+			spread = {x = 250, y = 250, z = 250},
+			seed = 23232,
+			octaves = 3,
+			persist = 0.66
+		},
+		biomes = {
+			"grassland_ocean",
+			"coniferous_forest_ocean",
+			"deciduous_forest_ocean"
+		},
+		y_max = -5,
+		y_min = -10,
+		flags = "force_placement",
+		param2 = 48,
+		param2_max = 96,
+	})
+	minetest.register_decoration({
+		name = "aquaz:tall_grass",
+		decoration = {
+			"aquaz:tall_grass",
+		},
+		deco_type = "simple",
+		place_on = {"default:sand"},
+		place_offset_y = -1,
+		sidelen = 16,
+		noise_params = {
+			offset = 0.00125,
+			scale = 0.04,
+			spread = {x = 250, y = 250, z = 250},
+			seed = 2323,
+			octaves = 3,
+			persist = 0.66
+		},
+		biomes = {
+			"grassland_ocean",
+			"coniferous_forest_ocean",
+			"deciduous_forest_ocean"
+		},
+		y_max = -5,
+		y_min = -10,
+		flags = "force_placement",
+		param2 = 48,
+		param2_max = 96,
+	})
+	minetest.register_decoration({
+		name = "aquaz:stars_anemons",
+		decoration = {
+			"aquaz:stars_anemons",
+		},
+		deco_type = "simple",
+		place_on = {"default:sand"},
+		place_offset_y = -1,
+		sidelen = 16,
+		noise_params = {
+			offset = 0.0005,
+			scale = 0.04,
+			spread = {x = 250, y = 250, z = 250},
+			seed = 343,
+			octaves = 3,
+			persist = 0.66
+		},
+		biomes = {
+			"grassland_ocean",
+			"coniferous_forest_ocean",
+			"deciduous_forest_ocean"
+		},
+		y_max = -5,
+		y_min = -10,
+		flags = "force_placement",
+		param2 = 48,
+		param2_max = 96,
+	})
+	minetest.register_decoration({
+		name = "aquaz:stars_anemons_2",
+		decoration = {
+			"aquaz:stars_anemons_2",
+		},
+		deco_type = "simple",
+		place_on = {"default:sand"},
+		place_offset_y = -1,
+		sidelen = 16,
+		noise_params = {
+			offset = 0.0005,
+			scale = 0.04,
+			spread = {x = 250, y = 250, z = 250},
+			seed = 733,
+			octaves = 3,
+			persist = 0.66
+		},
+		biomes = {
+			"grassland_ocean",
+			"coniferous_forest_ocean",
+			"deciduous_forest_ocean"
+		},
+		y_max = -5,
+		y_min = -10,
+		flags = "force_placement",
+		param2 = 48,
+		param2_max = 96,
+	})
+	minetest.register_decoration({
+		name = "aquaz:aquamarine_coral_branch",
+		decoration = {
+			"aquaz:aquamarine_coral_branch",
+		},
+		deco_type = "simple",
+		place_on = {"default:sand"},
+		place_offset_y = -1,
+		sidelen = 16,
+		noise_params = {
+			offset = 0.0005,
+			scale = 0.04,
+			spread = {x = 250, y = 250, z = 250},
+			seed = 82,
+			octaves = 3,
+			persist = 0.66
+		},
+		biomes = {
+			"grassland_ocean",
+			"coniferous_forest_ocean",
+			"deciduous_forest_ocean"
+		},
+		y_max = -5,
+		y_min = -10,
+		flags = "force_placement",
+		param2 = 48,
+		param2_max = 96,
+	})
+	minetest.register_decoration({
+		name = "aquaz:pink_birdnest_coral",
+		decoration = {
+			"aquaz:pink_birdnest_coral",
+		},
+		deco_type = "simple",
+		place_on = {"default:sand"},
+		place_offset_y = -1,
+		sidelen = 16,
+		noise_params = {
+			offset = 0.0005,
+			scale = 0.04,
+			spread = {x = 250, y = 250, z = 250},
+			seed = 1729,
+			octaves = 3,
+			persist = 0.66
+		},
+		biomes = {
+			"grassland_ocean",
+			"coniferous_forest_ocean",
+			"deciduous_forest_ocean"
+		},
+		y_max = -5,
+		y_min = -10,
+		flags = "force_placement",
+		param2 = 48,
+		param2_max = 96,
+	})
+	minetest.register_decoration({
+		name = "aquaz:sea_cucumbers",
+		decoration = {
+			"aquaz:sea_cucumbers",
+		},
+		deco_type = "simple",
+		place_on = {"default:sand"},
+		place_offset_y = -1,
+		sidelen = 16,
+		noise_params = {
+			offset = 0.0005,
+			scale = 0.04,
+			spread = {x = 250, y = 250, z = 250},
+			seed = 568,
+			octaves = 3,
+			persist = 0.66
+		},
+		biomes = {
+			"grassland_ocean",
+			"coniferous_forest_ocean",
+			"deciduous_forest_ocean"
+		},
+		y_max = -5,
+		y_min = -10,
+		flags = "force_placement",
+		param2 = 48,
+		param2_max = 96,
+	})
+	minetest.register_decoration({
+		name = "aquaz:sword_plant",
+		decoration = {
+			"aquaz:sword_plant",
+		},
+		deco_type = "simple",
+		place_on = {"default:sand"},
+		place_offset_y = -1,
+		sidelen = 16,
+		noise_params = {
+			offset = 0.0005,
+			scale = 0.04,
+			spread = {x = 250, y = 250, z = 250},
+			seed = 568,
 			octaves = 3,
 			persist = 0.66
 		},
