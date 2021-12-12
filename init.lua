@@ -4,12 +4,12 @@
 
 aquaz = {}
 
-local modname = "aquaz"
+local modname = minetest.get_current_modname()
 local modpath = minetest.get_modpath(modname)
 local mg_name = minetest.get_mapgen_setting("mg_name")
 
 -- internationalization boilerplate
-local S = minetest.get_translator(minetest.get_current_modname())
+local S = minetest.get_translator("aquaz")
 
 local function plant_on_place(itemstack, placer, pointed_thing)
 	-- Call on_rightclick if the pointed node defines it
@@ -23,7 +23,7 @@ local function plant_on_place(itemstack, placer, pointed_thing)
 	end
 
 	local pos = pointed_thing.under
-	if minetest.get_node(pos).name ~= "default:sand" then
+	if minetest.get_node(pos).name ~= "hades_default:sand" then
 		return itemstack
 	end
 	local pos_top = {x = pos.x, y = pos.y + 0.99, z = pos.z}
@@ -60,12 +60,12 @@ local function algae_on_place(itemstack, placer, pointed_thing)
 	end
 
 	local pos = pointed_thing.under
-	if minetest.get_node(pos).name ~= "default:sand" then
+	if minetest.get_node(pos).name ~= "hades_default:sand" then
 		return itemstack
 	end
 
-	local height = math.random(4, 6)
-	local pos_top = {x = pos.x, y = pos.y + height, z = pos.z}
+	local height = 1--math.random(4, 6)
+	local pos_top = {x = pos.x, y = pos.y + math.ceil(height/16), z = pos.z}
 	local node_top = minetest.get_node(pos_top)
 	local def_top = minetest.registered_nodes[node_top.name]
 	local player_name = placer:get_player_name()
@@ -75,7 +75,7 @@ local function algae_on_place(itemstack, placer, pointed_thing)
 		if not minetest.is_protected(pos, player_name) and
 				not minetest.is_protected(pos_top, player_name) then
 			minetest.set_node(pos, {name = itemstack:get_name(),
-				param2 = height * 16})
+				param2 = height})
 			if not (creative and creative.is_enabled_for
 					and creative.is_enabled_for(player_name)) then
 				itemstack:take_item()
@@ -84,98 +84,240 @@ local function algae_on_place(itemstack, placer, pointed_thing)
 			minetest.chat_send_player(player_name, S("Node is protected"))
 			minetest.record_protection_violation(pos, player_name)
 		end
+	else
+		 minetest.chat_send_player(player_name, "Missing water source above sand.")
 	end
 	return itemstack
 end
+
+local function coral_on_place(itemstack, placer, pointed_thing, coral_name, coral_base)
+	if pointed_thing.type ~= "node" or not placer then
+		return itemstack
+	end
+
+	local player_name = placer:get_player_name()
+	local pos_under = pointed_thing.under
+	local pos_above = pointed_thing.above
+
+	if minetest.get_node(pos_under).name ~= coral_base or
+			minetest.get_node(pos_above).name ~= "hades_core:water_source" then
+		return itemstack
+	end
+
+	if minetest.is_protected(pos_under, player_name) or
+			minetest.is_protected(pos_above, player_name) then
+		minetest.chat_send_player(player_name, "Node is protected")
+		minetest.record_protection_violation(pos_under, player_name)
+		return itemstack
+	end
+
+	local param2 = minetest.dir_to_wallmounted(vector.subtract(pos_under, pos_above), true)
+	minetest.set_node(pos_under, {name = coral_name, param2 = param2})
+	if not (minetest.is_creative_enabled(player_name)) then
+		itemstack:take_item()
+	end
+
+	return itemstack
+end
+
 
 --
 -- Nodes
 --
 
+aquaz.corals_base = {
+	{
+			name = "hades_aquaz:rhodophyta_base",
+			description= "Rhodophyta Coral",
+			tiles = "aquaz_rhodophyta_base",
+	},
+	{
+		name = "hades_aquaz:psammocora_base",
+		description= "Psammocora Coral",
+		tiles = "aquaz_psammocora_base",
+	},
+	{
+		name = "hades_aquaz:sarcophyton_base",
+		description= "Sarcophyton Coral",
+		tiles = "aquaz_sarcophyton_base",
+	},
+	{
+		name = "hades_aquaz:carnation_base",
+		description= "Carnation Coral",
+		tiles = "aquaz_carnation_base",
+	},
+	{
+		name = "hades_aquaz:fiery_red_base",
+		description= "Fiery Red Coral",
+		tiles = "aquaz_fiery_red_base",
+	},
+	{
+		name = "hades_aquaz:acropora_base",
+		description= "Acropora Coral",
+		tiles = "aquaz_acropora_base",
+	},
+}
+
+for _, base in pairs(aquaz.corals_base) do
+	minetest.register_node(base.name, {
+		description = S(base.description).." "..S("Block"),
+		short_description = S(base.description).." "..S("Block"),
+		tiles = {base.tiles..".png"},
+		walkable = true,
+		groups = {cracky = 3, coral_live = 1, coral_block_growing = 1},
+		drop = base.name.."_skeleton",
+		sounds = hades_sounds.node_sound_leaves_defaults(),
+	})
+	minetest.register_node(base.name.."_skeleton", {
+		description = S(base.description).." "..S("Skeleton"),
+		short_description = S(base.description).." "..S("Skeleton"),
+		tiles = {base.tiles.."_skeleton.png"},
+		walkable = true,
+		groups = {cracky = 3, coral_block_skeleton = 1},
+		sounds = hades_sounds.node_sound_leaves_defaults(),
+	})
+end
+
 aquaz.corals = {
 	{
-	name = "aquaz:rhodophyta",
-	description= "Rhodophyta Coral",
-	tiles = "aquaz_rhodophyta_base.png",
-	special_tiles = "aquaz_rhodophyta_top.png",
-	inventory_image = "aquaz_rhodophyta_inv.png",
+	name = "hades_aquaz:rhodophyta",
+	base = "hades_aquaz:rhodophyta_base",
+	base_skeleton = "hades_aquaz:rhodophyta_base_skeleton",
+	description = "Rhodophyta Coral",
+	special_tiles = "aquaz_rhodophyta_top",
 	},
 	{
-	name = "aquaz:psammocora",
-	description= "Psammocora Coral",
-	tiles = "aquaz_psammocora_base.png",
-	special_tiles = "aquaz_psammocora_top.png",
-	inventory_image = "aquaz_psammocora_inv.png",
+	name = "hades_aquaz:psammocora",
+	base = "hades_aquaz:psammocora_base",
+	base_skeleton = "hades_aquaz:psammocora_base_skeleton",
+	description = "Psammocora Coral",
+	special_tiles = "aquaz_psammocora_top",
 	},
 	{
-	name = "aquaz:sarcophyton",
-	description= "Sarcophyton Coral",
-	tiles = "aquaz_sarcophyton_base.png",
-	special_tiles = "aquaz_sarcophyton_top.png",
-	inventory_image = "aquaz_sarcophyton_inv.png",
+	name = "hades_aquaz:sarcophyton",
+	base = "hades_aquaz:sarcophyton_base",
+	base_skeleton = "hades_aquaz:sarcophyton_base_skeleton",
+	description = "Sarcophyton Coral",
+	special_tiles = "aquaz_sarcophyton_top",
 	},
 	{
-	name = "aquaz:carnation",
-	description= "Carnation Coral",
-	tiles = "aquaz_carnation_base.png",
-	special_tiles = "aquaz_carnation_top.png",
-	inventory_image = "aquaz_carnation_inv.png",
+	name = "hades_aquaz:carnation",
+	base = "hades_aquaz:carnation_base",
+	base_skeleton = "hades_aquaz:carnation_base_skeleton",
+	description = "Carnation Coral",
+	special_tiles = "aquaz_carnation_top",
 	},
 	{
-	name = "aquaz:fiery_red",
-	description= "Fiery Red Coral",
-	tiles = "aquaz_fiery_red_base.png",
-	special_tiles = "aquaz_fiery_red_top.png",
-	inventory_image = "aquaz_fiery_red_inv.png",
+	name = "hades_aquaz:fiery_red",
+	base = "hades_aquaz:fiery_red_base",
+	base_skeleton = "hades_aquaz:fiery_red_base_skeleton",
+	description = "Fiery Red Coral",
+	special_tiles = "aquaz_fiery_red_top",
 	},
 	{
-	name = "aquaz:acropora",
-	description= "Acropora Coral",
-	tiles = "aquaz_acropora_base.png",
-	special_tiles = "aquaz_acropora_top.png",
-	inventory_image = "aquaz_acropora_inv.png",
+	name = "hades_aquaz:acropora",
+	base = "hades_aquaz:acropora_base",
+	base_skeleton = "hades_aquaz:acropora_base_skeleton",
+	description = "Acropora Coral",
+	special_tiles = "aquaz_acropora_top",
+	},
+	{
+	name = "hades_aquaz:aquamarine_coral",
+	base = "hades_aquaz:psammocora_base",
+	base_skeleton = "hades_aquaz:psammocora_base_skeleton",
+	description = "Aquamarine Coral Branch",
+	special_tiles = "aquaz_aquamarine_coral_branch",
+	},
+	{
+	name = "hades_aquaz:pink_birdnest_coral",
+	base = "hades_xocean:brain_block",
+	base_skeleton = "hades_xocean:brain_skeleton",
+	description = "Pink Birdnest Coral",
+	special_tiles = "aquaz_pink_birdnest_coral",
+	},
+	{
+	name = "hades_aquaz:sea_blade_coral",
+	base = "hades_xocean:bubble_block",
+	base_skeleton = "hades_xocean:bubble_skeleton",
+	description = "Sea Blade Coral",
+	special_tiles = "aquaz_sea_blade_coral"
 	},
 }
 
 for i = 1, #aquaz.corals do
+	local def = minetest.registered_nodes[aquaz.corals[i].base]
 	minetest.register_node(aquaz.corals[i].name, {
 		description = S(aquaz.corals[i].description),
+		_tt_help = string.format(S("Need Underwater %s to grow."), def.short_description),
 		drawtype = "plantlike_rooted",
 		visual_scale = 1.0,
-		tiles = {aquaz.corals[i].tiles},
+		tiles = def.tiles,
 		special_tiles = {
 		nil,
 		nil,
-		aquaz.corals[i].special_tiles,
-		aquaz.corals[i].special_tiles,
-		aquaz.corals[i].special_tiles,
-		aquaz.corals[i].special_tiles
+		aquaz.corals[i].special_tiles..".png",
+		aquaz.corals[i].special_tiles..".png",
+		aquaz.corals[i].special_tiles..".png",
+		aquaz.corals[i].special_tiles..".png"
 		},
-		inventory_image = aquaz.corals[i].inventory_image,
 		paramtype = "light",
+		paramtype2 = "wallmounted",
 		walkable = true,
-		groups = {snappy = 3, leafdecay = 3, leaves = 1, flammable = 2},
-		sounds = default.node_sound_leaves_defaults(),
-		after_place_node = default.after_place_leaves,
+		groups = {snappy = 3, coral_live = 1, coral_growing = 1},
+		sounds = hades_sounds.node_sound_leaves_defaults(),
+		node_dig_prediction = aquaz.corals[i].base,
+		node_placement_prediction = "",
+		drop = aquaz.corals[i].name.."_skeleton",
+		on_place = function(itemstack, placer, pointed_thing) 
+			coral_on_place(itemstack, placer, pointed_thing, aquaz.corals[i].name, aquaz.corals[i].base)
+		end,
+		after_destruct = function(pos, oldnode)
+			minetest.set_node(pos, {name = aquaz.corals[i].base})
+		end,
+	})
+	local def = minetest.registered_nodes[aquaz.corals[i].base_skeleton]
+	minetest.register_node(aquaz.corals[i].name.."_skeleton", {
+		description = S(aquaz.corals[i].description).." "..S("Skeleton"),
+		drawtype = "plantlike_rooted",
+		visual_scale = 1.0,
+		tiles = def.tiles,
+		special_tiles = {
+		nil,
+		nil,
+		aquaz.corals[i].special_tiles.."_skeleton.png",
+		aquaz.corals[i].special_tiles.."_skeleton.png",
+		aquaz.corals[i].special_tiles.."_skeleton.png",
+		aquaz.corals[i].special_tiles.."_skeleton.png"
+		},
+		paramtype = "light",
+		paramtype2 = "wallmounted",
+		walkable = true,
+		groups = {snappy = 3, coral_skeleton = 1},
+		sounds = hades_sounds.node_sound_leaves_defaults(),
+		node_dig_prediction = aquaz.corals[i].base.."_skeleton",
+		node_placement_prediction = "",
+		drop = aquaz.corals[i].name.."_skeleton",
+		on_place = function(itemstack, placer, pointed_thing) 
+			coral_on_place(itemstack, placer, pointed_thing, aquaz.corals[i].name.."_skeleton", aquaz.corals[i].base.."_skeleton")
+		end,
+		after_destruct	= function(pos, oldnode)
+			minetest.set_node(pos, {name = aquaz.corals[i].base.."_skeleton"})
+		end,
 	})
 end
 
 aquaz.algaes = {
 	{
-	name = "aquaz:calliarthon_kelp",
+	name = "hades_aquaz:calliarthon_kelp",
 	description="Calliarthron Kelp",
 	texture = "aquaz_calliarthron_kelp.png"
-	},
-	{
-	name = "aquaz:sea_blade_coral",
-	description="Sea Blade Coral",
-	texture = "aquaz_sea_blade_coral.png"
 	},
 }
 
 for i = 1, #aquaz.algaes do
 	minetest.register_node(aquaz.algaes[i].name, {
 		description = S(aquaz.algaes[i].description),
+		_tt_help = S("Need underwater sand (no volcanic, fertilize, silver or desert) to grow"),
 		drawtype = "plantlike_rooted",
 		waving = 1,
 		tiles = {"default_sand.png"},
@@ -183,7 +325,7 @@ for i = 1, #aquaz.algaes do
 		inventory_image = aquaz.algaes[i].texture,
 		paramtype = "light",
 		paramtype2 = "leveled",
-		groups = {snappy = 3},
+		groups = {snappy = 3, kelp = 1, kelp_growing = 1},
 		selection_box = {
 			type = "fixed",
 			fixed = {
@@ -191,17 +333,17 @@ for i = 1, #aquaz.algaes do
 					{-2/16, 0.5, -2/16, 2/16, 3.5, 2/16},
 			},
 		},
-		node_dig_prediction = "default:sand",
+		node_dig_prediction = "hades_default:sand",
 		node_placement_prediction = "",
-		sounds = default.node_sound_sand_defaults({
+		sounds = hades_sounds.node_sound_sand_defaults({
 			dig = {name = "default_dig_snappy", gain = 0.2},
 			dug = {name = "default_grass_footstep", gain = 0.25},
 		}),
 
 		on_place = algae_on_place,
 
-		after_destruct  = function(pos, oldnode)
-			minetest.set_node(pos, {name = "default:sand"})
+		after_destruct	= function(pos, oldnode)
+			minetest.set_node(pos, {name = "hades_default:sand"})
 		end
 	})
 end
@@ -212,17 +354,17 @@ end
 
 if mg_name ~= "v6" and mg_name ~= "singlenode" then
 	minetest.register_decoration({
-		name = "aquaz:corals",
+		name = "hades_aquaz:corals",
 		decoration = {
-			"aquaz:psammocora",
-			"aquaz:rhodophyta",
-			"aquaz:sarcophyton",
-			"aquaz:carnation",
-			"aquaz:fiery_red",
-			"aquaz:acropora",
+			"hades_aquaz:psammocora",
+			"hades_aquaz:rhodophyta",
+			"hades_aquaz:sarcophyton",
+			"hades_aquaz:carnation",
+			"hades_aquaz:fiery_red",
+			"hades_aquaz:acropora",
 		},
 		deco_type = "simple",
-		place_on = {"default:sand"},
+		place_on = {"hades_default:sand"},
 		sidelen = 16,
 		noise_params = {
 			offset = -0.04,
@@ -245,13 +387,13 @@ end
 
 if mg_name ~= "v6" and mg_name ~= "singlenode" then
 	minetest.register_decoration({
-		name = "aquaz:kelps",
+		name = "hades_aquaz:kelps",
 		decoration = {
-			"aquaz:calliarthon_kelp",
-			"aquaz:sea_blade_coral"
+			"hades_aquaz:calliarthon_kelp",
+			"hades_aquaz:sea_blade_coral"
 		},
 		deco_type = "simple",
-		place_on = {"default:sand"},
+		place_on = {"hades_default:sand"},
 		place_offset_y = -1,
 		sidelen = 16,
 		noise_params = {
@@ -277,44 +419,34 @@ end
 
 aquaz.grass= {
 	{
-	name = "aquaz:grass",
+	name = "hades_aquaz:grass",
 	description= "Aquatic Grass",
 	special_tiles = "aquaz_grass.png",
 	},
 	{
-	name = "aquaz:tall_grass",
+	name = "hades_aquaz:tall_grass",
 	description= "Aquatic Tall Grass",
 	special_tiles = "aquaz_tall_grass.png",
 	},
 	{
-	name = "aquaz:stars_anemons",
+	name = "hades_aquaz:stars_anemons",
 	description= "Grass with Stars and Anemons",
 	special_tiles = "aquaz_stars_anemons.png",
-	drop = "aquaz:tall_grass"
+	drop = "hades_aquaz:tall_grass"
 	},
 	{
-	name = "aquaz:stars_anemons_2",
+	name = "hades_aquaz:stars_anemons_2",
 	description= "Grass with Stars and Anemons",
 	special_tiles = "aquaz_stars_anemons_2.png",
-	drop = "aquaz:tall_grass"
+	drop = "hades_aquaz:tall_grass"
 	},
 	{
-	name = "aquaz:aquamarine_coral_branch",
-	description= "Aquamarine Coral Branch",
-	special_tiles = "aquaz_aquamarine_coral_branch.png",
-	},
-	{
-	name = "aquaz:pink_birdnest_coral",
-	description= "Pink Birdnest Coral",
-	special_tiles = "aquaz_pink_birdnest_coral.png",
-	},
-	{
-	name = "aquaz:sea_cucumbers",
+	name = "hades_aquaz:sea_cucumbers",
 	description= "Sea Cucumbers",
 	special_tiles = "aquaz_sea_cucumbers.png",
 	},
 	{
-	name = "aquaz:sword_plant",
+	name = "hades_aquaz:sword_plant",
 	description= "Aquatic Sword Plant",
 	special_tiles = "aquaz_sword_plant.png",
 	},
@@ -329,6 +461,7 @@ for i = 1, #aquaz.grass do
 	end
 	minetest.register_node(aquaz.grass[i].name, {
 		description = S(aquaz.grass[i].description),
+		_tt_help = S("Need underwater sand (no volcanic, fertilize, silver or desert) to grow"),
 		drawtype = "plantlike_rooted",
 		waving = 1,
 		paramtype = "light",
@@ -337,7 +470,7 @@ for i = 1, #aquaz.grass do
 		inventory_image = aquaz.grass[i].special_tiles,
 		wield_image = aquaz.grass[i].special_tiles,
 		drop = drop,
-		groups = {snappy = 3},
+		groups = {snappy = 3, seagrass = 1, seagrass_growing = 1},
 		selection_box = {
 			type = "fixed",
 			fixed = {
@@ -345,29 +478,29 @@ for i = 1, #aquaz.grass do
 				{-4/16, 0.5, -4/16, 4/16, 1.5, 4/16},
 			},
 		},
-		node_dig_prediction = "default:sand",
+		node_dig_prediction = "hades_default:sand",
 		node_placement_prediction = "",
-		sounds = default.node_sound_stone_defaults({
+		sounds = hades_sounds.node_sound_stone_defaults({
 			dig = {name = "default_dig_snappy", gain = 0.2},
 			dug = {name = "default_grass_footstep", gain = 0.25},
 		}),
 
 		on_place = plant_on_place,
 
-		after_destruct  = function(pos, oldnode)
-			minetest.set_node(pos, {name = "default:sand"})
+		after_destruct	= function(pos, oldnode)
+			minetest.set_node(pos, {name = "hades_default:sand"})
 		end,
 	})
 end
 
 if mg_name ~= "v6" and mg_name ~= "singlenode" then
 	minetest.register_decoration({
-		name = "aquaz:grass",
+		name = "hades_aquaz:grass",
 		decoration = {
-			"aquaz:grass",
+			"hades_aquaz:grass",
 		},
 		deco_type = "simple",
-		place_on = {"default:sand"},
+		place_on = {"hades_default:sand"},
 		place_offset_y = -1,
 		sidelen = 16,
 		noise_params = {
@@ -390,12 +523,12 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 		param2_max = 96,
 	})
 	minetest.register_decoration({
-		name = "aquaz:tall_grass",
+		name = "hades_aquaz:tall_grass",
 		decoration = {
-			"aquaz:tall_grass",
+			"hades_aquaz:tall_grass",
 		},
 		deco_type = "simple",
-		place_on = {"default:sand"},
+		place_on = {"hades_default:sand"},
 		place_offset_y = -1,
 		sidelen = 16,
 		noise_params = {
@@ -418,12 +551,12 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 		param2_max = 96,
 	})
 	minetest.register_decoration({
-		name = "aquaz:stars_anemons",
+		name = "hades_aquaz:stars_anemons",
 		decoration = {
-			"aquaz:stars_anemons",
+			"hades_aquaz:stars_anemons",
 		},
 		deco_type = "simple",
-		place_on = {"default:sand"},
+		place_on = {"hades_default:sand"},
 		place_offset_y = -1,
 		sidelen = 16,
 		noise_params = {
@@ -446,12 +579,12 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 		param2_max = 96,
 	})
 	minetest.register_decoration({
-		name = "aquaz:stars_anemons_2",
+		name = "hades_aquaz:stars_anemons_2",
 		decoration = {
-			"aquaz:stars_anemons_2",
+			"hades_aquaz:stars_anemons_2",
 		},
 		deco_type = "simple",
-		place_on = {"default:sand"},
+		place_on = {"hades_default:sand"},
 		place_offset_y = -1,
 		sidelen = 16,
 		noise_params = {
@@ -474,12 +607,12 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 		param2_max = 96,
 	})
 	minetest.register_decoration({
-		name = "aquaz:aquamarine_coral_branch",
+		name = "hades_aquaz:aquamarine_coral_branch",
 		decoration = {
-			"aquaz:aquamarine_coral_branch",
+			"hades_aquaz:aquamarine_coral_branch",
 		},
 		deco_type = "simple",
-		place_on = {"default:sand"},
+		place_on = {"hades_default:sand"},
 		place_offset_y = -1,
 		sidelen = 16,
 		noise_params = {
@@ -502,12 +635,12 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 		param2_max = 96,
 	})
 	minetest.register_decoration({
-		name = "aquaz:pink_birdnest_coral",
+		name = "hades_aquaz:pink_birdnest_coral",
 		decoration = {
-			"aquaz:pink_birdnest_coral",
+			"hades_aquaz:pink_birdnest_coral",
 		},
 		deco_type = "simple",
-		place_on = {"default:sand"},
+		place_on = {"hades_default:sand"},
 		place_offset_y = -1,
 		sidelen = 16,
 		noise_params = {
@@ -530,12 +663,12 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 		param2_max = 96,
 	})
 	minetest.register_decoration({
-		name = "aquaz:sea_cucumbers",
+		name = "hades_aquaz:sea_cucumbers",
 		decoration = {
-			"aquaz:sea_cucumbers",
+			"hades_aquaz:sea_cucumbers",
 		},
 		deco_type = "simple",
-		place_on = {"default:sand"},
+		place_on = {"hades_default:sand"},
 		place_offset_y = -1,
 		sidelen = 16,
 		noise_params = {
@@ -558,12 +691,12 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 		param2_max = 96,
 	})
 	minetest.register_decoration({
-		name = "aquaz:sword_plant",
+		name = "hades_aquaz:sword_plant",
 		decoration = {
-			"aquaz:sword_plant",
+			"hades_aquaz:sword_plant",
 		},
 		deco_type = "simple",
-		place_on = {"default:sand"},
+		place_on = {"hades_default:sand"},
 		place_offset_y = -1,
 		sidelen = 16,
 		noise_params = {
@@ -591,17 +724,17 @@ end
 
 aquaz.wrecked_pillar = {
 	{
-	name = "aquaz:wrecked_pillar_base",
+	name = "hades_aquaz:wrecked_pillar_base",
 	description= "Wrecked Pillar Base",
 	tile = "aquaz_base_pillar.png"
 	},
 	{
-	name = "aquaz:wrecked_pillar_shaft",
+	name = "hades_aquaz:wrecked_pillar_shaft",
 	description= "Wrecked Pillar Shaft",
 	tile = "aquaz_shaft_pillar.png"
 	},
 	{
-	name = "aquaz:wrecked_pillar_capital",
+	name = "hades_aquaz:wrecked_pillar_capital",
 	description= "Wrecked Pillar Capital",
 	tile = "aquaz_capital_pillar.png"
 	},
@@ -617,23 +750,23 @@ for i = 1, #aquaz.wrecked_pillar do
 		},
 		is_ground_content = false,
 		groups = {cracky = 2, stone = 1},
-		sounds = default.node_sound_stone_defaults(),
+		sounds = hades_sounds.node_sound_stone_defaults(),
 	})
 end
 
 aquaz.coral_deco = {
 	{
-	name = "aquaz:purple_alga",
+	name = "hades_aquaz:purple_alga",
 	description= "Purple Alga Remains",
 	tile = "aquaz_purple_alga.png"
 	},
 	{
-	name = "aquaz:orange_alga",
+	name = "hades_aquaz:orange_alga",
 	description= "Orange Alga Remains",
 	tile = "aquaz_orange_alga.png"
 	},
 	{
-	name = "aquaz:red_alga",
+	name = "hades_aquaz:red_alga",
 	description= "Red Alga Remains",
 	tile = "aquaz_red_alga.png"
 	},
@@ -655,9 +788,9 @@ for i = 1, #aquaz.coral_deco do
 			fixed = {-0.5, -0.5, -0.5, 0.5, -0.499, 0.5}
 		},
 		groups = {
-			snappy = 2, flammable = 3, oddly_breakable_by_hand = 3, choppy = 2, carpet = 1, leafdecay = 3, leaves = 1
+			snappy = 2, flammable = 3, oddly_breakable_by_hand = 3, choppy = 2, carpet = 1, seagrass = 1, seagrass_growing = 1
 		},
-		sounds = default.node_sound_leaves_defaults(),
+		sounds = hades_sounds.node_sound_leaves_defaults(),
 
 		on_use = minetest.item_eat(4),
 	})
@@ -665,14 +798,14 @@ end
 
 if mg_name ~= "v6" and mg_name ~= "singlenode" then
 	minetest.register_decoration({
-		name = "aquaz:algaes",
+		name = "hades_aquaz:algaes",
 		decoration = {
-			"aquaz:purple_alga",
-			"aquaz:orange_alga",
-			"aquaz:red_alga",
+			"hades_aquaz:purple_alga",
+			"hades_aquaz:orange_alga",
+			"hades_aquaz:red_alga",
 		},
 		deco_type = "simple",
-		place_on = {"default:sand"},
+		place_on = {"hades_default:sand"},
 		sidelen = 16,
 		noise_params = {
 			offset = 0.0005,
@@ -693,20 +826,25 @@ if mg_name ~= "v6" and mg_name ~= "singlenode" then
 	})
 end
 
+--[[
 minetest.register_decoration({
-    deco_type = "schematic",
-    place_on = {"default:sand"},
-    place_offset_y = 1,
-    sidelen = 16,
-    fill_ratio = 0.0001,
+		deco_type = "schematic",
+		place_on = {"hades_default:sand"},
+		place_offset_y = 1,
+		sidelen = 16,
+		fill_ratio = 0.0001,
 	biomes = {
 		"grassland_ocean",
 		"coniferous_forest_ocean",
 		"deciduous_forest_ocean"
 	},
-    y_max = -6,
-    y_min = -10,
-    schematic = modpath .. "/schematics/wrecked_pillar.mts",
-    rotation = "random",
-    flags = "force_placement, place_center_x, place_center_z",
+		y_max = -6,
+		y_min = -10,
+		schematic = modpath .. "/schematics/wrecked_pillar.mts",
+		rotation = "random",
+		flags = "force_placement, place_center_x, place_center_z",
 })
+--]]
+
+dofile(modpath.."/hades.lua")
+
