@@ -48,7 +48,7 @@ local function plant_on_place(itemstack, placer, pointed_thing)
 	return itemstack
 end
 
-local function algae_on_place(itemstack, placer, pointed_thing)
+local function kelp_on_place(itemstack, placer, pointed_thing)
 	-- Call on_rightclick if the pointed node defines it
 	if pointed_thing.type == "node" and placer and not placer:get_player_control().sneak then
 		local node_ptu = minetest.get_node(pointed_thing.under)
@@ -89,6 +89,18 @@ local function algae_on_place(itemstack, placer, pointed_thing)
 	end
 	return itemstack
 end
+local function kelp_after_dig_node(pos, oldnode, oldmetadata, digger)
+	local height = math.ceil(oldnode.param2/16)
+	if height>1 then
+		local itemstack = ItemStack(oldnode.name)
+		itemstack:set_count(height-1)
+		local inv = digger:get_inventory()
+		itemstack = inv:add_item("main", itemstack)
+		if itemstack:get_count()>0 then
+			minetest.add_item(pos, itemstack)
+		end
+	end
+end
 
 local function coral_on_place(itemstack, placer, pointed_thing, coral_name, coral_base)
 	if pointed_thing.type ~= "node" or not placer then
@@ -120,6 +132,44 @@ local function coral_on_place(itemstack, placer, pointed_thing, coral_name, cora
 	return itemstack
 end
 
+local function algae_on_place(itemstack, placer, pointed_thing)
+	-- Call on_rightclick if the pointed node defines it
+	if pointed_thing.type == "node" and placer and not placer:get_player_control().sneak then
+		local node_ptu = minetest.get_node(pointed_thing.under)
+		local def_ptu = minetest.registered_nodes[node_ptu.name]
+		if def_ptu and def_ptu.on_rightclick then
+			return def_ptu.on_rightclick(pointed_thing.under, node_ptu, placer,
+				itemstack, pointed_thing)
+		end
+	end
+
+	local pos = pointed_thing.under
+	if minetest.get_node(pos).name ~= "hades_core:water_source" then
+		return itemstack
+	end
+
+	local pos_top = {x = pos.x, y = pos.y + 1, z = pos.z}
+	local node_top = minetest.get_node(pos_top)
+	local def_top = minetest.registered_nodes[node_top.name]
+	local player_name = placer:get_player_name()
+
+	if def_top and def_top.buildable_to and def_top.liquidtype == "none" then
+		if not minetest.is_protected(pos, player_name) and
+				not minetest.is_protected(pos_top, player_name) then
+			minetest.set_node(pos_top, {name = itemstack:get_name(), param2 = minetest.dir_to_facedir(vector.subtract(pos, pointed_thing.above))})
+			if not (creative and creative.is_enabled_for
+					and creative.is_enabled_for(player_name)) then
+				itemstack:take_item()
+			end
+		else
+			minetest.chat_send_player(player_name, S("Node is protected"))
+			minetest.record_protection_violation(pos, player_name)
+		end
+	else
+		 minetest.chat_send_player(player_name, "Missing buildable_to node above water source.")
+	end
+	return itemstack
+end
 
 --
 -- Nodes
@@ -248,7 +298,7 @@ for i = 1, #aquaz.corals do
 	local def = minetest.registered_nodes[aquaz.corals[i].base]
 	minetest.register_node(aquaz.corals[i].name, {
 		description = S(aquaz.corals[i].description),
-		_tt_help = string.format(S("Need Underwater %s to grow."), def.short_description),
+		_tt_help = S("Need Underwater @1 to grow.", def.short_description),
 		drawtype = "plantlike_rooted",
 		visual_scale = 1.0,
 		tiles = def.tiles,
@@ -306,23 +356,24 @@ for i = 1, #aquaz.corals do
 	})
 end
 
-aquaz.algaes = {
+aquaz.kelps = {
 	{
-	name = "hades_aquaz:calliarthon_kelp",
-	description="Calliarthron Kelp",
-	texture = "aquaz_calliarthron_kelp.png"
+		name = "hades_aquaz:calliarthon_kelp",
+		description="Calliarthron Kelp",
+		texture = "aquaz_calliarthron_kelp.png"
 	},
 }
 
-for i = 1, #aquaz.algaes do
-	minetest.register_node(aquaz.algaes[i].name, {
-		description = S(aquaz.algaes[i].description),
+for i = 1, #aquaz.kelps do
+	minetest.register_node(aquaz.kelps[i].name, {
+		description = S(aquaz.kelps[i].description),
 		_tt_help = S("Need underwater sand (no volcanic, fertilize, silver or desert) to grow"),
 		drawtype = "plantlike_rooted",
 		waving = 1,
 		tiles = {"default_sand.png"},
-		special_tiles = {{name = aquaz.algaes[i].texture, tileable_vertical = true}},
-		inventory_image = aquaz.algaes[i].texture,
+		special_tiles = {{name = aquaz.kelps[i].texture, tileable_vertical = true}},
+		inventory_image = aquaz.kelps[i].texture,
+		wield_image = aquaz.kelps[i].texture,
 		paramtype = "light",
 		paramtype2 = "leveled",
 		groups = {snappy = 3, kelp = 1, kelp_growing = 1},
@@ -340,7 +391,8 @@ for i = 1, #aquaz.algaes do
 			dug = {name = "default_grass_footstep", gain = 0.25},
 		}),
 
-		on_place = algae_on_place,
+		on_place = kelp_on_place,
+		after_dig_node = kelp_after_dig_node,
 
 		after_destruct	= function(pos, oldnode)
 			minetest.set_node(pos, {name = "hades_default:sand"})
@@ -470,7 +522,7 @@ for i = 1, #aquaz.grass do
 		inventory_image = aquaz.grass[i].special_tiles,
 		wield_image = aquaz.grass[i].special_tiles,
 		drop = drop,
-		groups = {snappy = 3, seagrass = 1, seagrass_growing = 1},
+		groups = {snappy = 3, seaplant = 1, seagrass_growing = 1},
 		selection_box = {
 			type = "fixed",
 			fixed = {
@@ -775,10 +827,14 @@ aquaz.coral_deco = {
 for i = 1, #aquaz.coral_deco do
 	minetest.register_node(aquaz.coral_deco[i].name, {
 		description = S(aquaz.coral_deco[i].description),
+		_tt_help = S("Need water source surface to grow"),
 		drawtype = "nodebox",
 		walkable = true,
 		paramtype = "light",
 		paramtype2 = "facedir",
+    floodable = true,
+		liquids_pointable = true,
+		walkable = false,
 		tiles = {aquaz.coral_deco[i].tile},
 		use_texture_alpha = true,
 		inventory_image = aquaz.coral_deco[i].tile,
@@ -788,11 +844,12 @@ for i = 1, #aquaz.coral_deco do
 			fixed = {-0.5, -0.5, -0.5, 0.5, -0.499, 0.5}
 		},
 		groups = {
-			snappy = 2, flammable = 3, oddly_breakable_by_hand = 3, choppy = 2, carpet = 1, seagrass = 1, seagrass_growing = 1
+			snappy = 2, flammable = 3, oddly_breakable_by_hand = 3, choppy = 2, carpet = 1, algae = 1, algae_growing = 1, food = 2, eatable = 1
 		},
 		sounds = hades_sounds.node_sound_leaves_defaults(),
-
-		on_use = minetest.item_eat(4),
+		
+		on_place = algae_on_place,
+		on_use = minetest.item_eat(1),
 	})
 end
 
