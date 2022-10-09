@@ -904,4 +904,5 @@ minetest.register_decoration({
 --]]
 
 dofile(modpath.."/hades.lua")
+dofile(modpath.."/hades_feed.lua")
 

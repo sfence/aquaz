@@ -11,25 +11,6 @@ for _, coral in pairs(aquaz.corals) do
 	})
 end
 
--- algae_feed
-minetest.register_craftitem("hades_aquaz:algae_feed", {
-    description = "Algae feed",
-    inventory_image = "aquaz_algae_feed.png",
-		groups = {
-			algae = 1, food = 2, eatable = 1,
-		},
-		on_use = minetest.item_eat(1),
-  })
-minetest.register_craft({
-    type = "shapeless",
-    output = "hades_aquaz:algae_feed 3",
-    recipe = {
-      "hades_aquaz:purple_alga",
-      "hades_aquaz:orange_alga",
-      "hades_aquaz:red_alga",
-    },
-  })
-
 -- stairs for tall_grass
 minetest.override_item("hades_aquaz:stars_anemons", {
 		groups = {snappy = 3},
