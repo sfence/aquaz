@@ -58,6 +58,11 @@ local function use_bucket_algae_feed (itemstack, user, pointed_thing)
   
   if (feed_fish>0) then
     itemstack:take_item(1)
+    local inv = user:get_inventory()
+    local bucket = inv:add_item("main", ItemStack("hades_bucket:bucket_empty"))
+    if (bucket:get_count()>0) then
+      minetest.add_item(user:get_pos(), bucket)
+    end
   end
   
   return itemstack
